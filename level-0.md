@@ -18,7 +18,7 @@ ___
 
 In this first step, there are 2 ways to do it:
 
-- **Quick way**: clone this repository's **level-0** branch to get started directly. You can then skip ahead to [point 2](#building-and-renaming-the-template-module).
+- **Quick way**: clone this repository's **level-0** branch to get started directly. You can then skip ahead to [point 2](#2-building-and-renaming-the-template-module).
 - **Recommended way**: Start fresh from the [substrate-node-template](https://github.com/substrate-developer-hub/substrate-node-template) repository. Follow the instructions below.
 
 
