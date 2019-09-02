@@ -35,10 +35,10 @@ decl_module! {
             // Verify that the incoming transaction is signed
             let sender = ensure_signed(origin)?;
 
-            // Verify that the specified digest has not been stored yet
+            // Verify that the specified proof has not been stored yet
             ensure!(!<Proofs<T>>::exists(&digest), "This proof has already been stored");
 
-            // Store the digest and the sender of the transaction
+            // Store the proof and the sender of the transaction
             <Proofs<T>>::insert(&digest, sender.clone());
 
             // Issue an event to notify that the proof was successfully stored

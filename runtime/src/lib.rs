@@ -271,7 +271,7 @@ construct_runtime!(
 		Balances: balances,
 		Sudo: sudo,
 		// Used for the module PoE in `./poe.rs`
-		PoeModule: poe::{Module, Call, Storage, Event<T>},
+		Poe: poe::{Module, Call, Storage, Event<T>},
 	}
 );
 
