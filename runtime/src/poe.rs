@@ -141,7 +141,7 @@ mod tests {
 	}
 
 	#[test]
-	fn it_works_for_default_value() {
+	fn it_works() {
 		with_externalities(&mut new_test_ext(), || {
 
             // Have account 1 stores a proof
