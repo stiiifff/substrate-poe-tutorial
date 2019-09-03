@@ -5,7 +5,7 @@ use rstd::vec::Vec;
 use system::ensure_signed;
 
 /// The module's configuration trait.
-pub trait Trait: system::Trait {
+pub trait Trait: timestamp::Trait {
     /// The overarching event type.
 	type Event: From<Event<Self>> + Into<<Self as system::Trait>::Event>;
 }
@@ -16,7 +16,7 @@ decl_storage! {
         // Define a 'Proofs' storage space for a map with
         // the proof digest as the key, and associated AccountId as value.
         // The 'get(proofs)' is the default getter.
-		Proofs get(proofs): map Vec<u8> => T::AccountId;
+		Proofs get(proofs): map Vec<u8> => (T::AccountId, T::Moment);
 	}
 }
 
@@ -37,12 +37,14 @@ decl_module! {
 
             // Verify that the specified proof has not been stored yet
             ensure!(!<Proofs<T>>::exists(&digest), "This proof has already been stored");
+			// Get current time for current block using the base timestamp module
+			let time = <timestamp::Module<T>>::now();
 
-            // Store the proof and the sender of the transaction
-            <Proofs<T>>::insert(&digest, sender.clone());
+            // Store the proof and the sender of the transaction, plus block time
+            <Proofs<T>>::insert(&digest, (sender.clone(), time.clone()));
 
             // Issue an event to notify that the proof was successfully stored
-            Self::deposit_event(RawEvent::ProofStored(sender, digest));
+            Self::deposit_event(RawEvent::ProofStored(sender, time, digest));
 
             Ok(())
         }
@@ -58,7 +60,7 @@ decl_module! {
             ensure!(<Proofs<T>>::exists(&digest), "This proof has not been stored yet");
 
             // Get owner associated with the proof
-            let owner = Self::proofs(&digest);
+            let (owner, _time) = Self::proofs(&digest);
 
             // Verify that sender of the current tx is the proof owner
             ensure!(sender == owner, "You must own this proof to erase it");
@@ -76,9 +78,12 @@ decl_module! {
 
 // This module's events.
 decl_event!(
-	pub enum Event<T> where AccountId = <T as system::Trait>::AccountId {
+	pub enum Event<T> where
+		AccountId = <T as system::Trait>::AccountId,
+		Moment = <T as timestamp::Trait>::Moment
+	 {
         // Event emitted when a proof has been stored into chain storage
-		ProofStored(AccountId, Vec<u8>),
+		ProofStored(AccountId, Moment, Vec<u8>),
         // Event emitted when a proof has been erased from chain storage
 		ProofErased(AccountId, Vec<u8>),
 	}
@@ -129,6 +134,14 @@ mod tests {
 		type AvailableBlockRatio = AvailableBlockRatio;
 		type Version = ();
 	}
+	parameter_types! {
+		pub const MinimumPeriod: u64 = 5;
+	}
+	impl timestamp::Trait for Test {
+        type Moment = u64;
+        type OnTimestampSet = ();
+		type MinimumPeriod = MinimumPeriod;
+    }
 	impl Trait for Test {
 		type Event = ();
 	}
