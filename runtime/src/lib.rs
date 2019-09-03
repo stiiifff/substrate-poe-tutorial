@@ -254,6 +254,7 @@ impl sudo::Trait for Runtime {
 
 /// Used for the module template in `./template.rs`
 impl poe::Trait for Runtime {
+	type Currency = Balances;
 	type Event = Event;
 }
 
