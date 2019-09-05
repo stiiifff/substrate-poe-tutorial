@@ -20,24 +20,24 @@ use support::traits::{Currency, ReservableCurrency};
 type BalanceOf<T> = <<T as Trait>::Currency as Currency<<T as system::Trait>::AccountId>>::Balance;
 
 pub trait Trait: timestamp::Trait {
-	type Currency: ReservableCurrency<Self::AccountId>;
+  type Currency: ReservableCurrency<Self::AccountId>;
 
-    // ...
+  // ...
 }
 ```
 
 Next, to align with aforementionned terminology of claiming and revoking a proof, we rename the module's events:
 ```rust
 decl_event!(
-	pub enum Event<T> where
-		AccountId = <T as system::Trait>::AccountId,
-		Moment = <T as timestamp::Trait>::Moment
-	 {
-        // Event emitted when a proof has been successfully claimed
-		ClaimCreated(AccountId, Moment, Vec<u8>),
-        // Event emitted when a proof claim has been revoked
-		ClaimRevoked(AccountId, Vec<u8>),
-	}
+  pub enum Event<T> where
+    AccountId = <T as system::Trait>::AccountId,
+    Moment = <T as timestamp::Trait>::Moment
+   {
+    // Event emitted when a proof has been successfully claimed
+    ClaimCreated(AccountId, Moment, Vec<u8>),
+    // Event emitted when a proof claim has been revoked
+    ClaimRevoked(AccountId, Vec<u8>),
+  }
 );
 ```
 
@@ -51,64 +51,64 @@ const POE_FEE: u64 = 1000;
 // ...
 
 decl_module! {
-	pub struct Module<T: Trait> for enum Call where origin: T::Origin {
-        // ...
+  pub struct Module<T: Trait> for enum Call where origin: T::Origin {
+    // ...
 
-		// This function can be called by the external world as an extrinsics call.
-		// The origin parameter is of type `AccountId`.
-        // The function performs a few verifications, then stores the proof and emits an event.
-		fn create_claim(origin, digest: Vec<u8>) -> Result {
-            // Verify that the incoming transaction is signed
-            let sender = ensure_signed(origin)?;
+    // This function can be called by the external world as an extrinsics call.
+    // The origin parameter is of type `AccountId`.
+    // The function performs a few verifications, then stores the proof and emits an event.
+    fn create_claim(origin, digest: Vec<u8>) -> Result {
+      // Verify that the incoming transaction is signed
+      let sender = ensure_signed(origin)?;
 
-			// Validate digest does not exceed a maximum size
-			ensure!(digest.len() <= DIGEST_MAXSIZE, ERR_DIGEST_TOO_LONG);
+      // Validate digest does not exceed a maximum size
+      ensure!(digest.len() <= DIGEST_MAXSIZE, ERR_DIGEST_TOO_LONG);
 
-            // Verify that the specified proof has not been claimed yet
-            ensure!(!Proofs::<T>::exists(&digest), "This proof has already been claimed");
-			// Get current time for current block using the base timestamp module
-			let time = timestamp::Module::<T>::now();
+      // Verify that the specified proof has not been claimed yet
+      ensure!(!Proofs::<T>::exists(&digest), "This proof has already been claimed");
+      // Get current time for current block using the base timestamp module
+      let time = timestamp::Module::<T>::now();
 
-			// Reserve the fee in the sender's account balance
-			T::Currency::reserve(&sender, BalanceOf::<T>::from(POE_FEE))?;
+      // Reserve the fee in the sender's account balance
+      T::Currency::reserve(&sender, BalanceOf::<T>::from(POE_FEE))?;
 
-            // Store the proof and the sender of the transaction, plus block time
-            Proofs::<T>::insert(&digest, (sender.clone(), time.clone()));
+      // Store the proof and the sender of the transaction, plus block time
+      Proofs::<T>::insert(&digest, (sender.clone(), time.clone()));
 
-            // Issue an event to notify that the proof was successfully claimed
-            Self::deposit_event(RawEvent::ClaimCreated(sender, time, digest));
+      // Issue an event to notify that the proof was successfully claimed
+      Self::deposit_event(RawEvent::ClaimCreated(sender, time, digest));
 
-            Ok(())
-        }
+      Ok(())
+    }
 
-        // This function's structure is similar to the store_proof function.
-        // The function performs a few verifications, then revoke an existing proof from storage,
-        // and finally emits an event.
-		fn revoke_claim(origin, digest: Vec<u8>) -> Result {
-            // Verify that the incoming transaction is signed
-            let sender = ensure_signed(origin)?;
+    // This function's structure is similar to the store_proof function.
+    // The function performs a few verifications, then revoke an existing proof from storage,
+    // and finally emits an event.
+    fn revoke_claim(origin, digest: Vec<u8>) -> Result {
+      // Verify that the incoming transaction is signed
+      let sender = ensure_signed(origin)?;
 
-            // Verify that the specified proof has been claimed before
-            ensure!(Proofs::<T>::exists(&digest), "This proof has not been claimed yet");
+      // Verify that the specified proof has been claimed before
+      ensure!(Proofs::<T>::exists(&digest), "This proof has not been claimed yet");
 
-            // Get owner associated with the proof
-            let (owner, _time) = Self::proofs(&digest);
+      // Get owner associated with the proof
+      let (owner, _time) = Self::proofs(&digest);
 
-            // Verify that sender of the current tx is the proof owner
-            ensure!(sender == owner, "You must own this claim to revoke it");
+      // Verify that sender of the current tx is the proof owner
+      ensure!(sender == owner, "You must own this claim to revoke it");
 
-            // Erase proof from storage
-            Proofs::<T>::remove(&digest);
+      // Erase proof from storage
+      Proofs::<T>::remove(&digest);
 
-			// Release previously reserved fee from owner's account balance
-			T::Currency::unreserve(&sender, BalanceOf::<T>::from(POE_FEE));
+      // Release previously reserved fee from owner's account balance
+      T::Currency::unreserve(&sender, BalanceOf::<T>::from(POE_FEE));
 
-            // Issue an event to notify that the claim was effectively revoked
-            Self::deposit_event(RawEvent::ClaimRevoked(sender, digest));
+      // Issue an event to notify that the claim was effectively revoked
+      Self::deposit_event(RawEvent::ClaimRevoked(sender, digest));
 
-            Ok(())
-        }
-	}
+      Ok(())
+    }
+  }
 }
 ```
 
@@ -116,27 +116,27 @@ Last step, we need update our test code to account for the additional traits imp
 ```rust
 // ADD THIS
 impl balances::Trait for Test {
-    type Balance = u64;
-    type OnNewAccount = ();
-    type OnFreeBalanceZero = ();
-    type Event = ();
-    type TransactionPayment = ();
-    type TransferPayment = ();
-    type DustRemoval = ();
-    type ExistentialDeposit = ();
-    type TransferFee = ();
-    type CreationFee = ();
-    type TransactionBaseFee = ();
-    type TransactionByteFee = ();
-    type WeightToFee = ();
+  type Balance = u64;
+  type OnNewAccount = ();
+  type OnFreeBalanceZero = ();
+  type Event = ();
+  type TransactionPayment = ();
+  type TransferPayment = ();
+  type DustRemoval = ();
+  type ExistentialDeposit = ();
+  type TransferFee = ();
+  type CreationFee = ();
+  type TransactionBaseFee = ();
+  type TransactionByteFee = ();
+  type WeightToFee = ();
 }
 
 // ...
 
 impl Trait for Test {
-    type Event = ();
-    // ADD THIS
-    type Currency = balances::Module<Test>;
+  type Event = ();
+  // ADD THIS
+  type Currency = balances::Module<Test>;
 }
 // ADD THIS
 type Balances = balances::Module<Test>;
@@ -145,46 +145,46 @@ type Balances = balances::Module<Test>;
 // This function basically just builds a genesis storage key/value store according to
 // our desired mockup.
 fn new_test_ext() -> runtime_io::TestExternalities<Blake2Hasher> {
-    let mut t = system::GenesisConfig::default().build_storage::<Test>().unwrap();
-    balances::GenesisConfig::<Test> {
-        balances: vec![(1, 10000), (2, 10000)],
-        vesting: vec![],
-    }.assimilate_storage(&mut t).unwrap();
-    t.into()
+  let mut t = system::GenesisConfig::default().build_storage::<Test>().unwrap();
+  balances::GenesisConfig::<Test> {
+    balances: vec![(1, 10000), (2, 10000)],
+    vesting: vec![],
+  }.assimilate_storage(&mut t).unwrap();
+  t.into()
 }
 
 // AND PRETTY MUCH REVAMP THE TESTS :)
 #[test]
 fn it_works() {
-    with_externalities(&mut new_test_ext(), || {
+  with_externalities(&mut new_test_ext(), || {
 
-		// Verify it's not possible to store exceedingly big digests (prevent DOS attack and/or chain storage bloat)
-		assert_noop!(POEModule::create_claim(Origin::signed(1), vec![0; 101]), "Digest too long (max 100 bytes)");
+    // Verify it's not possible to store exceedingly big digests (prevent DOS attack and/or chain storage bloat)
+    assert_noop!(POEModule::create_claim(Origin::signed(1), vec![0; 101]), "Digest too long (max 100 bytes)");
 
-        // Have account 1 create a claim
-        assert_ok!(POEModule::create_claim(Origin::signed(1), vec![0]));
+    // Have account 1 create a claim
+    assert_ok!(POEModule::create_claim(Origin::signed(1), vec![0]));
 
-        // Check that account 1 reserved their deposit for creating a claim
-        assert_eq!(Balances::free_balance(&1), 9000);
-        assert_eq!(Balances::reserved_balance(&1), 1000);
+    // Check that account 1 reserved their deposit for creating a claim
+    assert_eq!(Balances::free_balance(&1), 9000);
+    assert_eq!(Balances::reserved_balance(&1), 1000);
 
-        // Check that account 2 cannot create the same claim
-        assert_noop!(POEModule::create_claim(Origin::signed(2), vec![0]), "This proof has already been claimed");
-        // Check that account 2 cannot revoke a claim they do not own
-        assert_noop!(POEModule::revoke_claim(Origin::signed(2), vec![0]), "You must own this claim to revoke it");
-        // Check that account 2 cannot revoke some non-existent claim
-        assert_noop!(POEModule::revoke_claim(Origin::signed(2), vec![1]), "This proof has not been claimed yet");
+    // Check that account 2 cannot create the same claim
+    assert_noop!(POEModule::create_claim(Origin::signed(2), vec![0]), "This proof has already been claimed");
+    // Check that account 2 cannot revoke a claim they do not own
+    assert_noop!(POEModule::revoke_claim(Origin::signed(2), vec![0]), "You must own this claim to revoke it");
+    // Check that account 2 cannot revoke some non-existent claim
+    assert_noop!(POEModule::revoke_claim(Origin::signed(2), vec![1]), "This proof has not been claimed yet");
 
-        // Check that account 1 can revoke their claim
-        assert_ok!(POEModule::revoke_claim(Origin::signed(1), vec![0]));
+    // Check that account 1 can revoke their claim
+    assert_ok!(POEModule::revoke_claim(Origin::signed(1), vec![0]));
 
-        // Check that account 1 got back their deposit
-        assert_eq!(Balances::free_balance(&1), 10000);
-        assert_eq!(Balances::reserved_balance(&1), 0);
+    // Check that account 1 got back their deposit
+    assert_eq!(Balances::free_balance(&1), 10000);
+    assert_eq!(Balances::reserved_balance(&1), 0);
 
-        // Check that account 2 can now claim this digest
-        assert_ok!(POEModule::create_claim(Origin::signed(2), vec![0]));
-    });
+    // Check that account 2 can now claim this digest
+    assert_ok!(POEModule::create_claim(Origin::signed(2), vec![0]));
+  });
 }
 ```
 
