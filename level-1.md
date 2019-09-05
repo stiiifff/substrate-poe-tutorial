@@ -55,14 +55,14 @@ fn store_proof(origin, digest: Vec<u8>) -> Result {
     let sender = ensure_signed(origin)?;
 
     // Verify that the specified proof has not been stored yet
-    ensure!(!<Proofs<T>>::exists(&digest), "This proof has already been stored");
+    ensure!(!Proofs::<T>::exists(&digest), "This proof has already been stored");
 
     // ADD THIS
     // Get current time for current block using the base timestamp module
-    let time = <timestamp::Module<T>>::now();
+    let time = timestamp::Module::<T>::now();
 
     // Store the proof and the sender of the transaction, plus block time
-    <Proofs<T>>::insert(&digest, (sender.clone(), time.clone())); // <- ADD time.clone()
+    Proofs::<T>::insert(&digest, (sender.clone(), time.clone())); // <- ADD time.clone()
 
     // Issue an event to notify that the proof was successfully stored
     Self::deposit_event(RawEvent::ProofStored(sender, time, digest)); // <- ADD time
@@ -76,7 +76,7 @@ fn erase_proof(origin, digest: Vec<u8>) -> Result {
     let sender = ensure_signed(origin)?;
     
     // Verify that the specified proof has been stored before
-    ensure!(<Proofs<T>>::exists(&digest), "This proof has not been stored yet");
+    ensure!(Proofs::<T>::exists(&digest), "This proof has not been stored yet");
 
     // DESTRUCTURED ASSIGNMENT TO (owner, _time)
     // Get owner associated with the proof
@@ -86,7 +86,7 @@ fn erase_proof(origin, digest: Vec<u8>) -> Result {
     ensure!(sender == owner, "You must own this proof to erase it");
 
     // Erase proof from storage
-    <Proofs<T>>::remove(&digest);
+    Proofs::<T>::remove(&digest);
 
     // Issue an event to notify that the proof was effectively erased
     Self::deposit_event(RawEvent::ProofErased(sender, digest));
