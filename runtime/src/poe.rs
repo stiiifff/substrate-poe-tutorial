@@ -168,7 +168,7 @@ mod tests {
 		with_externalities(&mut new_test_ext(), || {
 
 			// Verify it's not possible to store exceedingly big digests (prevent DOS attack and/or chain storage bloat)
-			assert_noop!(POEModule::create_claim(Origin::signed(1), vec![0; 101]), "Digest too long (max 100 bytes)");
+			assert_noop!(POEModule::store_proof(Origin::signed(1), vec![0; 101]), "Digest too long (max 100 bytes)");
 
 			// Have account 1 stores a proof
 			assert_ok!(POEModule::store_proof(Origin::signed(1), vec![0]));
