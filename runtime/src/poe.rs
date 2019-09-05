@@ -5,6 +5,9 @@ use support::traits::{Currency, ReservableCurrency};
 use rstd::vec::Vec;
 use system::ensure_signed;
 
+pub const ERR_DIGEST_TOO_LONG: &str = "Digest too long (max 100 bytes)";
+pub const DIGEST_MAXSIZE: usize = 100;
+
 // Fee that users are supposed to deposit to
 // hold a claim on a specific proof digest
 const POE_FEE: u32 = 1000;
@@ -44,6 +47,9 @@ decl_module! {
 			// Verify that the incoming transaction is signed
 			let sender = ensure_signed(origin)?;
 
+			// Validate digest does not exceed a maximum size
+			ensure!(digest.len() <= DIGEST_MAXSIZE, ERR_DIGEST_TOO_LONG);
+
 			// Verify that the specified proof has not been claimed yet
 			ensure!(!<Proofs<T>>::exists(&digest), "This proof has already been claimed");
 			// Get current time for current block using the base timestamp module
@@ -67,6 +73,9 @@ decl_module! {
 		fn revoke_claim(origin, digest: Vec<u8>) -> Result {
 			// Verify that the incoming transaction is signed
 			let sender = ensure_signed(origin)?;
+
+			// Validate digest does not exceed a maximum size
+			ensure!(digest.len() <= DIGEST_MAXSIZE, ERR_DIGEST_TOO_LONG);
 
 			// Verify that the specified proof has been claimed before
 			ensure!(<Proofs<T>>::exists(&digest), "This proof has not been claimed yet");
@@ -193,6 +202,9 @@ mod tests {
 	#[test]
 	fn it_works() {
 		with_externalities(&mut new_test_ext(), || {
+
+			// Verify it's not possible to store exceedingly big digests (prevent DOS attack and/or chain storage bloat)
+			assert_noop!(POEModule::create_claim(Origin::signed(1), vec![0; 101]), "Digest too long (max 100 bytes)");
 
 			// Have account 1 create a claim
 			assert_ok!(POEModule::create_claim(Origin::signed(1), vec![0]));
