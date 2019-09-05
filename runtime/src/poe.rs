@@ -76,7 +76,7 @@ decl_module! {
 
 			// Validate digest does not exceed a maximum size
 			ensure!(digest.len() <= DIGEST_MAXSIZE, ERR_DIGEST_TOO_LONG);
-            
+
             // Verify that the specified proof has been claimed before
             ensure!(<Proofs<T>>::exists(&digest), "This proof has not been claimed yet");
 
