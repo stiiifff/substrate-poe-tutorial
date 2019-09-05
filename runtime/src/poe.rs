@@ -67,7 +67,7 @@ decl_module! {
 		fn revoke_claim(origin, digest: Vec<u8>) -> Result {
             // Verify that the incoming transaction is signed
             let sender = ensure_signed(origin)?;
-            
+
             // Verify that the specified proof has been claimed before
             ensure!(<Proofs<T>>::exists(&digest), "This proof has not been claimed yet");
 
