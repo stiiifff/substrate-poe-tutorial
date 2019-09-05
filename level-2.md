@@ -13,7 +13,7 @@ To do so, we will leverage generic traits that are part of Substrate: the [Curre
 Additionally, to better reflect the intent of our runtime module, we will adapt the **terminology** that we use in function names: we will now talk about **creating a claim** and **revoking a claim** on a particular proof instead of **storing** / **erasing** (which did sound a bit too database-CRUDish).
 
 First, we'll starting by referencing the traits we need in our module, and declaring a **Currency type** in our module's configuration trait. We also take the opportunity to declare a **BalanceOf** alias type that will later make our code more readable:
-```
+```rust
 use support::traits::{Currency, ReservableCurrency};
 
 // Shorthand type for Balance type from Currency trait
@@ -27,7 +27,7 @@ pub trait Trait: timestamp::Trait {
 ```
 
 Next, to align with aforementionned terminology of claiming and revoking a proof, we rename the module's events:
-```
+```rust
 decl_event!(
 	pub enum Event<T> where
 		AccountId = <T as system::Trait>::AccountId,
@@ -42,7 +42,7 @@ decl_event!(
 ```
 
 We can then revisit the logic of our **store_proof** and **erase_proof** functions, that we rename to **create_claim** and **revoke_claim**. We also define a **fixed fee** as a constant that will act as (very basic) [economic disincentive](https://en.wikipedia.org/wiki/Disincentive) to mitigate abuse of our proof-of-existence feature: this amount will be **reserved in the sender's account balance** when a claim is created, and **released when the claim is later revoked**:
-```
+```rust
 // ...
 use system::ensure_signed;
 
@@ -61,16 +61,19 @@ decl_module! {
             // Verify that the incoming transaction is signed
             let sender = ensure_signed(origin)?;
 
+			// Validate digest does not exceed a maximum size
+			ensure!(digest.len() <= DIGEST_MAXSIZE, ERR_DIGEST_TOO_LONG);
+
             // Verify that the specified proof has not been claimed yet
-            ensure!(!<Proofs<T>>::exists(&digest), "This proof has already been claimed");
+            ensure!(!Proofs::<T>::exists(&digest), "This proof has already been claimed");
 			// Get current time for current block using the base timestamp module
-			let time = <timestamp::Module<T>>::now();
+			let time = timestamp::Module::<T>::now();
 
 			// Reserve the fee in the sender's account balance
 			T::Currency::reserve(&sender, BalanceOf::<T>::from(POE_FEE))?;
 
             // Store the proof and the sender of the transaction, plus block time
-            <Proofs<T>>::insert(&digest, (sender.clone(), time.clone()));
+            Proofs::<T>::insert(&digest, (sender.clone(), time.clone()));
 
             // Issue an event to notify that the proof was successfully claimed
             Self::deposit_event(RawEvent::ClaimCreated(sender, time, digest));
@@ -84,9 +87,9 @@ decl_module! {
 		fn revoke_claim(origin, digest: Vec<u8>) -> Result {
             // Verify that the incoming transaction is signed
             let sender = ensure_signed(origin)?;
-            
+
             // Verify that the specified proof has been claimed before
-            ensure!(<Proofs<T>>::exists(&digest), "This proof has not been claimed yet");
+            ensure!(Proofs::<T>::exists(&digest), "This proof has not been claimed yet");
 
             // Get owner associated with the proof
             let (owner, _time) = Self::proofs(&digest);
@@ -95,7 +98,7 @@ decl_module! {
             ensure!(sender == owner, "You must own this claim to revoke it");
 
             // Erase proof from storage
-            <Proofs<T>>::remove(&digest);
+            Proofs::<T>::remove(&digest);
 
 			// Release previously reserved fee from owner's account balance
 			T::Currency::unreserve(&sender, BalanceOf::<T>::from(POE_FEE));
@@ -110,7 +113,7 @@ decl_module! {
 ```
 
 Last step, we need update our test code to account for the additional traits implemented, and to additional checks to verify that a claim holder has her account balance impacted by the fee mechanism !
-```
+```rust
 // ADD THIS
 impl balances::Trait for Test {
     type Balance = u64;
@@ -154,6 +157,9 @@ fn new_test_ext() -> runtime_io::TestExternalities<Blake2Hasher> {
 #[test]
 fn it_works() {
     with_externalities(&mut new_test_ext(), || {
+
+		// Verify it's not possible to store exceedingly big digests (prevent DOS attack and/or chain storage bloat)
+		assert_noop!(POEModule::create_claim(Origin::signed(1), vec![0; 101]), "Digest too long (max 100 bytes)");
 
         // Have account 1 create a claim
         assert_ok!(POEModule::create_claim(Origin::signed(1), vec![0]));
