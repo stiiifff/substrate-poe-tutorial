@@ -51,15 +51,15 @@ decl_module! {
 			ensure!(digest.len() <= DIGEST_MAXSIZE, ERR_DIGEST_TOO_LONG);
 
 			// Verify that the specified proof has not been claimed yet
-			ensure!(!<Proofs<T>>::exists(&digest), "This proof has already been claimed");
+			ensure!(!Proofs::<T>::exists(&digest), "This proof has already been claimed");
 			// Get current time for current block using the base timestamp module
-			let time = <timestamp::Module<T>>::now();
+			let time = timestamp::Module::<T>::now();
 
 			// Reserve the fee in the sender's account balance
 			T::Currency::reserve(&sender, BalanceOf::<T>::from(POE_FEE))?;
 
 			// Store the proof and the sender of the transaction, plus block time
-			<Proofs<T>>::insert(&digest, (sender.clone(), time.clone()));
+			Proofs::<T>::insert(&digest, (sender.clone(), time.clone()));
 
 			// Issue an event to notify that the proof was successfully claimed
 			Self::deposit_event(RawEvent::ClaimCreated(sender, time, digest));
@@ -78,7 +78,7 @@ decl_module! {
 			ensure!(digest.len() <= DIGEST_MAXSIZE, ERR_DIGEST_TOO_LONG);
 
 			// Verify that the specified proof has been claimed before
-			ensure!(<Proofs<T>>::exists(&digest), "This proof has not been claimed yet");
+			ensure!(Proofs::<T>::exists(&digest), "This proof has not been claimed yet");
 
 			// Get owner associated with the proof
 			let (owner, _time) = Self::proofs(&digest);
@@ -87,7 +87,7 @@ decl_module! {
 			ensure!(sender == owner, "You must own this claim to revoke it");
 
 			// Erase proof from storage
-			<Proofs<T>>::remove(&digest);
+			Proofs::<T>::remove(&digest);
 
 			// Release previously reserved fee from owner's account balance
 			T::Currency::unreserve(&sender, BalanceOf::<T>::from(POE_FEE));
