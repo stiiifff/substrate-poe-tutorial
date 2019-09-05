@@ -127,10 +127,10 @@ pub const DIGEST_MAXSIZE: usize = 100;
 decl_storage! {
     trait Store for Module<T: Trait> as PoeStorage {
 
-    // Define a 'Proofs' storage space for a map with
-    // the proof digest as the key, and associated AccountId as value.
-    // The 'get(proofs)' is the default getter.
-        Proofs get(proofs): map Vec<u8> => T::AccountId;
+        // Define a 'Proofs' storage space for a map with
+        // the proof digest as the key, and associated AccountId as value.
+        // The 'get(proofs)' is the default getter.
+        Proofs get(proofs): map Vec<u8> => T::AccountId;
     }
 }
 ```
@@ -142,10 +142,10 @@ use support::{decl_event};
 decl_event!(
     pub enum Event<T> where AccountId = <T as system::Trait>::AccountId {
 
-    // Event emitted when a proof has been stored into chain storage
-        ProofStored(AccountId, Vec<u8>),
-    // Event emitted when a proof has been erased from chain storage
-        ProofErased(AccountId, Vec<u8>),
+      // Event emitted when a proof has been stored into chain storage
+      ProofStored(AccountId, Vec<u8>),
+      // Event emitted when a proof has been erased from chain storage
+      ProofErased(AccountId, Vec<u8>),
     }
 );
 ```
