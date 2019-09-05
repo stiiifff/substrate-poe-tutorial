@@ -4,75 +4,85 @@ use support::{decl_module, decl_storage, decl_event, ensure, StorageMap, dispatc
 use rstd::vec::Vec;
 use system::ensure_signed;
 
+pub const ERR_DIGEST_TOO_LONG: &str = "Digest too long (max 100 bytes)";
+pub const DIGEST_MAXSIZE: usize = 100;
+
 /// The module's configuration trait.
 pub trait Trait: timestamp::Trait {
-    /// The overarching event type.
+	/// The overarching event type.
 	type Event: From<Event<Self>> + Into<<Self as system::Trait>::Event>;
 }
 
 // This module's storage items.
 decl_storage! {
 	trait Store for Module<T: Trait> as PoeStorage {
-        // Define a 'Proofs' storage space for a map with
-        // the proof digest as the key, and associated AccountId as value.
-        // The 'get(proofs)' is the default getter.
+		// Define a 'Proofs' storage space for a map with
+		// the proof digest as the key, and associated AccountId as value.
+		// The 'get(proofs)' is the default getter.
 		Proofs get(proofs): map Vec<u8> => (T::AccountId, T::Moment);
 	}
 }
 
 // The module's dispatchable functions.
 decl_module! {
-    /// The module declaration.
+	/// The module declaration.
 	pub struct Module<T: Trait> for enum Call where origin: T::Origin {
-        // Initializing events
+		// Initializing events
 		// this is needed only if you are using events in your module
 		fn deposit_event() = default;
 
 		// This function can be called by the external world as an extrinsics call.
 		// The origin parameter is of type `AccountId`.
-        // The function performs a few verifications, then stores the proof and emits an event.
+		// The function performs a few verifications, then stores the proof and emits an event.
 		fn store_proof(origin, digest: Vec<u8>) -> Result {
-            // Verify that the incoming transaction is signed
-            let sender = ensure_signed(origin)?;
+			// Verify that the incoming transaction is signed
+			let sender = ensure_signed(origin)?;
 
-            // Verify that the specified proof has not been stored yet
-            ensure!(!Proofs::<T>::exists(&digest), "This proof has already been stored");
+			// Validate digest does not exceed a maximum size
+			ensure!(digest.len() <= DIGEST_MAXSIZE, ERR_DIGEST_TOO_LONG);
+
+			// Verify that the specified proof has not been stored yet
+			ensure!(!Proofs::<T>::exists(&digest), "This proof has already been stored");
+
 			// Get current time for current block using the base timestamp module
 			let time = timestamp::Module::<T>::now();
 
-            // Store the proof and the sender of the transaction, plus block time
-            Proofs::<T>::insert(&digest, (sender.clone(), time.clone()));
+			// Store the proof and the sender of the transaction, plus block time
+			Proofs::<T>::insert(&digest, (sender.clone(), time.clone()));
 
-            // Issue an event to notify that the proof was successfully stored
-            Self::deposit_event(RawEvent::ProofStored(sender, time, digest));
+			// Issue an event to notify that the proof was successfully stored
+			Self::deposit_event(RawEvent::ProofStored(sender, time, digest));
 
-            Ok(())
-        }
+			Ok(())
+		}
 
-        // This function's structure is similar to the store_proof function.
-        // The function performs a few verifications, then erase an existing proof from storage,
-        // and finally emits an event.
+		// This function's structure is similar to the store_proof function.
+		// The function performs a few verifications, then erase an existing proof from storage,
+		// and finally emits an event.
 		fn erase_proof(origin, digest: Vec<u8>) -> Result {
-            // Verify that the incoming transaction is signed
-            let sender = ensure_signed(origin)?;
-            
-            // Verify that the specified proof has been stored before
-            ensure!(Proofs::<T>::exists(&digest), "This proof has not been stored yet");
+			// Verify that the incoming transaction is signed
+			let sender = ensure_signed(origin)?;
 
-            // Get owner associated with the proof
-            let (owner, _time) = Self::proofs(&digest);
+			// Validate digest does not exceed a maximum size
+			ensure!(digest.len() <= DIGEST_MAXSIZE, ERR_DIGEST_TOO_LONG);
 
-            // Verify that sender of the current tx is the proof owner
-            ensure!(sender == owner, "You must own this proof to erase it");
+			// Verify that the specified proof has been stored before
+			ensure!(Proofs::<T>::exists(&digest), "This proof has not been stored yet");
 
-            // Erase proof from storage
-            Proofs::<T>::remove(&digest);
+			// Get owner associated with the proof
+			let (owner, _time) = Self::proofs(&digest);
 
-            // Issue an event to notify that the proof was effectively erased
-            Self::deposit_event(RawEvent::ProofErased(sender, digest));
+			// Verify that sender of the current tx is the proof owner
+			ensure!(sender == owner, "You must own this proof to erase it");
 
-            Ok(())
-        }
+			// Erase proof from storage
+			Proofs::<T>::remove(&digest);
+
+			// Issue an event to notify that the proof was effectively erased
+			Self::deposit_event(RawEvent::ProofErased(sender, digest));
+
+			Ok(())
+		}
 	}
 }
 
@@ -82,9 +92,9 @@ decl_event!(
 		AccountId = <T as system::Trait>::AccountId,
 		Moment = <T as timestamp::Trait>::Moment
 	 {
-        // Event emitted when a proof has been stored into chain storage
+		// Event emitted when a proof has been stored into chain storage
 		ProofStored(AccountId, Moment, Vec<u8>),
-        // Event emitted when a proof has been erased from chain storage
+		// Event emitted when a proof has been erased from chain storage
 		ProofErased(AccountId, Vec<u8>),
 	}
 );
@@ -138,10 +148,10 @@ mod tests {
 		pub const MinimumPeriod: u64 = 5;
 	}
 	impl timestamp::Trait for Test {
-        type Moment = u64;
-        type OnTimestampSet = ();
+		type Moment = u64;
+		type OnTimestampSet = ();
 		type MinimumPeriod = MinimumPeriod;
-    }
+	}
 	impl Trait for Test {
 		type Event = ();
 	}
@@ -157,18 +167,21 @@ mod tests {
 	fn it_works() {
 		with_externalities(&mut new_test_ext(), || {
 
-            // Have account 1 stores a proof
+			// Verify it's not possible to store exceedingly big digests (prevent DOS attack and/or chain storage bloat)
+			assert_noop!(POEModule::create_claim(Origin::signed(1), vec![0; 101]), "Digest too long (max 100 bytes)");
+
+			// Have account 1 stores a proof
 			assert_ok!(POEModule::store_proof(Origin::signed(1), vec![0]));
-            // Check that account 2 cannot create the same proof
-            assert_noop!(POEModule::store_proof(Origin::signed(2), vec![0]), "This proof has already been stored");
-            // Check that account 2 cannot erase a proof they do not own
-            assert_noop!(POEModule::erase_proof(Origin::signed(2), vec![0]), "You must own this proof to erase it");
-            // Check that account 2 cannot revoke some non-existent proof
-            assert_noop!(POEModule::erase_proof(Origin::signed(2), vec![1]), "This proof has not been stored yet");
-            // Check that account 1 can erase their proof
-            assert_ok!(POEModule::erase_proof(Origin::signed(1), vec![0]));
-            // Check that account 2 can now store this proof
-            assert_ok!(POEModule::store_proof(Origin::signed(2), vec![0]));
+			// Check that account 2 cannot create the same proof
+			assert_noop!(POEModule::store_proof(Origin::signed(2), vec![0]), "This proof has already been stored");
+			// Check that account 2 cannot erase a proof they do not own
+			assert_noop!(POEModule::erase_proof(Origin::signed(2), vec![0]), "You must own this proof to erase it");
+			// Check that account 2 cannot revoke some non-existent proof
+			assert_noop!(POEModule::erase_proof(Origin::signed(2), vec![1]), "This proof has not been stored yet");
+			// Check that account 1 can erase their proof
+			assert_ok!(POEModule::erase_proof(Origin::signed(1), vec![0]));
+			// Check that account 2 can now store this proof
+			assert_ok!(POEModule::store_proof(Origin::signed(2), vec![0]));
 		});
 	}
 }
