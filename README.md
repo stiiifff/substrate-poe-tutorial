@@ -1,6 +1,27 @@
-# Substrate Node Template
+# Substrate Proof of Existence Module
 
-A new SRML-based Substrate node, ready for hacking.
+This is a simple Substrate runtime module to store online distributed [proof of existence](https://www.proofofexistence.com/) for any file.
+
+## Purpose
+
+This module enables users submit a proof of existence for a file. This proof of existence may also be used as a soft measure of ownership.
+
+Files are not directly uploaded to the blockchain. Instead, a [file digest](https://en.wikipedia.org/wiki/File_verification) is generated, and the resulting digest is stored on chain with the time of upload and the user who made the claim.
+
+Anyone who has the source file can also generate the same digest and check the proof of existence on-chain.
+
+## Tutorial
+
+This repository is a 3-part tutorial to equip you with the basic skills to build your own custom **Substrate runtime modules**. You can follow it along by checking out the following branches, that act as starting point for each *level* of the tutorial.
+
+- The **level-0** branch starts from a blank [substrate node template](https://github.com/substrate-developer-hub/substrate-node-template). Follow the instructions on the [level-0](level-0.md) page.
+- The **level-1** branch adds the time dimension to the basic proof-of-existence system built at **level-0**, and demonstrate how to leverage **built-in Substrate runtime module** (e.g. *Timestamp* module). See the [level-1](level-1.md) tutorial page.
+- The **level-2** branch expands on the code from **level-1** to add the economic dimension with account balances and fees, and wraps up with a fully-functional proof-of-existence Substrate runtime module. Follow the step at [level-2](level-2.md) tutorial page.
+- The **master** branch contains the fully implemented **proof-of-existence Substrate runtime module**.
+
+___
+
+Below, the instructions to setup your dev environment, and at any time build & run your Substrate node, that includes your shiny Proof-of-existence runtime module.
 
 ## Build
 
